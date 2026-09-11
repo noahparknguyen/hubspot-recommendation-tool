@@ -12,7 +12,7 @@ Built as a capstone project by Team Debug (Algonquin College) for Inbox, a HubSp
 [![Jest](https://img.shields.io/badge/Jest-29-c21325?logo=jest&logoColor=white)](https://jestjs.io)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker&logoColor=white)](https://docker.com)
 
-🔗 **Live Demo:** [hubspot-recommendation-tool.onrender.com](https://hubspot-recommendation-tool.onrender.com/) — hosted on a free tier, so give it a few seconds to wake up.
+🔗 **Live Demo:** [hubspot-recommendation-tool.onrender.com](https://hubspot-recommendation-tool.onrender.com/) — hosted on a free tier that sleeps when idle, so the first load can take up to a minute.
 
 ![The HubSpot Recommendation Tool — paste a website URL and press Analyze](docs/home.png)
 
@@ -89,7 +89,7 @@ curl "http://localhost:3001/api/analyze?url=https://react.dev"
 | Backend        | Node.js 20 (vanilla `http` — no framework)                                               |
 | Detection data | [WebAppAnalyzer](https://github.com/enthec/webappanalyzer) fingerprint dataset (GPL-3.0) |
 | HTML parsing   | Cheerio                                                                                  |
-| Testing        | Jest                                                                                     |
+| Testing        | Jest (backend), Vitest (frontend)                                                        |
 | Deployment     | Docker, Render                                                                           |
 
 ## Documentation
