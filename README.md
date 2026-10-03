@@ -26,7 +26,7 @@ It's meant to speed up discovery, not replace it. The output is a starting point
 
 Key capabilities:
 
-- Detects hundreds of technologies via a 10-matcher fingerprint pipeline (HTTP headers, script sources, DOM, cookies, meta tags, inline scripts, CSS, and more)
+- Detects over 6,000 technologies via a 10-matcher fingerprint pipeline (HTTP headers, script sources, DOM, cookies, meta tags, inline scripts, CSS, and more)
 - Maps detections to HubSpot products via a configurable JSON file — no code changes required to add or update recommendations
 - Optional HTTP Basic Auth with in-memory failed-auth rate limiting
 - CLI tool for running analyses directly from the terminal
