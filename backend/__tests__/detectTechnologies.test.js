@@ -5,7 +5,8 @@
  * - confidence aggregation uses the probabilistic OR formula (bounded to [0,100])
  * - version comes from the strongest single evidence match
  * - evidence is de-duped and capped
- * - matchers throwing does NOT crash detection (defensive pipeline)
+ * - matchers throwing does NOT crash detection (defensive pipeline), and the
+ *   failing matcher is logged by name
  * - filtering by minConfidence happens AFTER relationship resolution
  */
 describe("core/detect/detectTechnologies", () => {
@@ -105,10 +106,12 @@ describe("core/detect/detectTechnologies", () => {
     expect(next.confidence).toBe(55);
   });
 
-  test("does not crash when a matcher throws", () => {
+  test("does not crash when a matcher throws, and logs which one", () => {
+    const boom = new Error("boom");
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     mockAllMatchers({
-      url: () => {
-        throw new Error("boom");
+      url: function matchUrl() {
+        throw boom;
       },
       html: () => [{ slug: "React", confidence: 80, evidence: "html ok" }],
     });
@@ -131,6 +134,10 @@ describe("core/detect/detectTechnologies", () => {
     expect(out).toEqual([
       { slug: "React", name: "React", confidence: 80, evidence: ["html ok"] },
     ]);
+    expect(warn).toHaveBeenCalledWith(
+      "[detect] matchUrl threw; its detections were skipped:",
+      boom,
+    );
   });
 
   test("applies minConfidence AFTER relationship resolution", () => {

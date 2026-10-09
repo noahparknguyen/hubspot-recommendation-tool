@@ -128,8 +128,14 @@ function runMatcher(detections, matcherFn, db, signals) {
 
       detections.set(slug, existing);
     }
-  } catch {
-    // A matcher should never take down the pipeline.
+  } catch (err) {
+    // A matcher should never take down the pipeline. But a matcher that
+    // throws loses every detection of its kind, so say which one, or the
+    // results just get thinner with nothing in the logs to explain why.
+    console.warn(
+      `[detect] ${matcherFn.name} threw; its detections were skipped:`,
+      err,
+    );
   }
 }
 

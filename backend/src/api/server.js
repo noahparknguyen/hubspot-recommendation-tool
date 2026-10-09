@@ -283,6 +283,14 @@ const server = http.createServer(async (req, res) => {
 
     sendJson(res, 404, { ok: false, error: "Not found" }, pretty);
   } catch (err) {
+    // A route that throws after it started responding can't be sent a fresh
+    // error response: setting headers again throws, and a throw here would
+    // end the whole process. Cut the connection instead.
+    if (res.headersSent) {
+      res.destroy();
+      return;
+    }
+
     const safeMessage =
       config.env === "production"
         ? "Internal server error"

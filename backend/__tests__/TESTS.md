@@ -129,6 +129,12 @@ How `fetchPage` finds a page's external scripts and stylesheets.
 - Links that aren't stylesheets are skipped
 - Crafted 2 MB pages of unclosed tag fragments finish in under a second
 
+### `serverErrors.test.js`
+
+The server's last-resort error handling, with the real `server.js` running in a child process and the analyze route swapped for a broken one.
+
+- A route that throws after it started responding gets its connection cut, and the server keeps running
+
 ### `detectTechnologies.test.js`
 
 Phase 4: technology detection across all matcher signals.
@@ -136,7 +142,7 @@ Phase 4: technology detection across all matcher signals.
 - Confidence aggregation uses probabilistic OR formula: `1 - ∏(1 - cᵢ)`, bounded to `[0, 100]`
 - Version is taken from the single strongest evidence match
 - Evidence strings are collected and de-duplicated
-- A matcher throwing does not crash the pipeline (defensive try/catch per matcher)
+- A matcher throwing does not crash the pipeline (defensive try/catch per matcher), and a warning names the matcher
 - `minConfidence` filter is applied _after_ relationship resolvers (so resolvers can promote detections above the threshold)
 - Passing a `null` DB throws a clear `"Tech DB is not loaded"` error
 
