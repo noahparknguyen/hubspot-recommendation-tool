@@ -1,8 +1,18 @@
 // backend/src/core/fetch/fetchPage.js
 const { URL } = require("node:url");
-const { assertPublicHost } = require("./ssrf");
+// undici's own fetch, not Node's global one: the Agent below comes from this
+// package, and a dispatcher from one copy of undici isn't guaranteed to work
+// with another copy's fetch.
+const { Agent, fetch } = require("undici");
+const { assertPublicHost, safeLookup } = require("./ssrf");
 const { config } = require("../config");
-const { AppError } = require("../errors");
+const { AppError, isAppError } = require("../errors");
+
+// Every connection resolves its host through safeLookup, so the address that
+// passed the SSRF check is the address the socket connects to. A check in a
+// separate lookup alone would let DNS answer the check and the connection
+// differently.
+const dispatcher = new Agent({ connect: { lookup: safeLookup } });
 
 // One deadline covers a whole hop: the headers and the body alike.
 function timeoutError(cause) {
@@ -221,6 +231,7 @@ async function fetchResource(
           method: "GET",
           redirect: "manual",
           signal: controller.signal,
+          dispatcher,
           headers: {
             "User-Agent": userAgent,
             Accept: accept,
@@ -228,6 +239,8 @@ async function fetchResource(
         });
       } catch (err) {
         if (err?.name === "AbortError") throw timeoutError(err);
+        // safeLookup refused the address this connection resolved to.
+        if (isAppError(err?.cause)) throw err.cause;
 
         throw new AppError({
           code: "FETCH_FAILED",

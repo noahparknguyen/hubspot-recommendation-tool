@@ -73,6 +73,96 @@ describe("core/fetch/ssrf", () => {
     expect(isBlockedIp("2001:4860:4860::8888")).toBe(false);
   });
 
+  test("isBlockedIp blocks the reserved IPv4 ranges that are never public servers", () => {
+    const { isBlockedIp } = require("../src/core/fetch/ssrf");
+
+    // Protocol assignments and the documentation ranges
+    expect(isBlockedIp("192.0.0.8")).toBe(true);
+    expect(isBlockedIp("192.0.2.1")).toBe(true);
+    expect(isBlockedIp("198.51.100.1")).toBe(true);
+    expect(isBlockedIp("203.0.113.1")).toBe(true);
+
+    // 198.18.0.0/15 (benchmarking), and its public neighbour
+    expect(isBlockedIp("198.18.0.1")).toBe(true);
+    expect(isBlockedIp("198.19.255.254")).toBe(true);
+    expect(isBlockedIp("198.20.0.1")).toBe(false);
+
+    // Multicast, reserved, and broadcast
+    expect(isBlockedIp("224.0.0.1")).toBe(true);
+    expect(isBlockedIp("240.0.0.1")).toBe(true);
+    expect(isBlockedIp("255.255.255.255")).toBe(true);
+    expect(isBlockedIp("223.255.255.254")).toBe(false);
+  });
+
+  test("isBlockedIp blocks IPv6 forms that embed or stand in for private addresses", () => {
+    const { isBlockedIp } = require("../src/core/fetch/ssrf");
+
+    // IPv4-compatible (deprecated): ::127.0.0.1
+    expect(isBlockedIp("::127.0.0.1")).toBe(true);
+
+    // NAT64 and 6to4, which can carry 127.0.0.1
+    expect(isBlockedIp("64:ff9b::7f00:1")).toBe(true);
+    expect(isBlockedIp("2002:7f00:1::1")).toBe(true);
+
+    // Discard-only, documentation, site-local, and multicast
+    expect(isBlockedIp("100::1")).toBe(true);
+    expect(isBlockedIp("2001:db8::1")).toBe(true);
+    expect(isBlockedIp("fec0::1")).toBe(true);
+    expect(isBlockedIp("ff02::1")).toBe(true);
+
+    // Public v6 still allowed
+    expect(isBlockedIp("2606:4700::1111")).toBe(false);
+  });
+
+  // --- safeLookup: the check inside the connection's own DNS lookup ---
+
+  function mockLookup(addresses) {
+    return jest
+      .spyOn(require("node:dns"), "lookup")
+      .mockImplementation((_host, _opts, cb) => cb(null, addresses));
+  }
+
+  function callSafeLookup(options) {
+    const { safeLookup } = require("../src/core/fetch/ssrf");
+    return new Promise((resolve) => {
+      safeLookup("example.com", options, (err, ...result) =>
+        resolve({ err, result }),
+      );
+    });
+  }
+
+  test("safeLookup passes public addresses through, in both result shapes", async () => {
+    mockLookup([{ address: "93.184.216.34", family: 4 }]);
+
+    const single = await callSafeLookup({});
+    expect(single.err).toBeNull();
+    expect(single.result).toEqual(["93.184.216.34", 4]);
+
+    const all = await callSafeLookup({ all: true });
+    expect(all.err).toBeNull();
+    expect(all.result).toEqual([[{ address: "93.184.216.34", family: 4 }]]);
+  });
+
+  test("safeLookup refuses when any resolved address is blocked", async () => {
+    mockLookup([
+      { address: "93.184.216.34", family: 4 },
+      { address: "127.0.0.1", family: 4 },
+    ]);
+
+    const { err } = await callSafeLookup({ all: true });
+    expect(err).toMatchObject({ code: "SSRF_BLOCKED_IP", statusCode: 400 });
+  });
+
+  test("safeLookup passes DNS errors through", async () => {
+    const dnsErr = Object.assign(new Error("not found"), { code: "ENOTFOUND" });
+    jest
+      .spyOn(require("node:dns"), "lookup")
+      .mockImplementation((_host, _opts, cb) => cb(dnsErr));
+
+    const { err } = await callSafeLookup({});
+    expect(err).toBe(dnsErr);
+  });
+
   test("assertPublicHost rejects empty hostname", async () => {
     const { assertPublicHost } = require("../src/core/fetch/ssrf");
 

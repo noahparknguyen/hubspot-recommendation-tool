@@ -71,6 +71,11 @@ describe("readBodyWithLimit (via fetchPage)", () => {
     jest.doMock("../src/core/config", () => ({
       config: { fetch: { timeoutMs: 30_000, maxBytes: 100 } },
     }));
+    // fetchPage calls undici's fetch: route it to the fake each test sets
+    jest.doMock("undici", () => ({
+      Agent: function Agent() {},
+      fetch: (...args) => global.fetch(...args),
+    }));
   });
 
   afterEach(() => {

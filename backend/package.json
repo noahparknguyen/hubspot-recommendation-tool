@@ -45,7 +45,8 @@
   "homepage": "https://hubspot-recommendation-tool.onrender.com/",
   "type": "commonjs",
   "dependencies": {
-    "cheerio": "^1.2.0"
+    "cheerio": "^1.2.0",
+    "undici": "^7.30.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

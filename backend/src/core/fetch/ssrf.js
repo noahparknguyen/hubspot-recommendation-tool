@@ -1,5 +1,6 @@
 // backend/src/core/fetch/ssrf.js
-const dns = require("node:dns").promises;
+const dnsCallback = require("node:dns");
+const dns = dnsCallback.promises;
 const net = require("node:net");
 const { badRequest } = require("../errors");
 
@@ -32,7 +33,7 @@ function isBlockedIpv4(ip) {
     return true;
   }
 
-  const [a, b] = parts;
+  const [a, b, c] = parts;
 
   // 0.0.0.0/8 (current network) - treat as blocked
   if (a === 0) return true;
@@ -55,15 +56,24 @@ function isBlockedIpv4(ip) {
   // 100.64.0.0/10 (carrier-grade NAT)
   if (a === 100 && b >= 64 && b <= 127) return true;
 
+  // 192.0.0.0/24 (protocol assignments) and the three documentation ranges:
+  // never public web servers.
+  if (a === 192 && b === 0 && (c === 0 || c === 2)) return true;
+  if (a === 198 && b === 51 && c === 100) return true;
+  if (a === 203 && b === 0 && c === 113) return true;
+
+  // 198.18.0.0/15 (benchmarking)
+  if (a === 198 && (b === 18 || b === 19)) return true;
+
+  // 224.0.0.0/4 (multicast) and 240.0.0.0/4 (reserved, including the
+  // 255.255.255.255 broadcast address)
+  if (a >= 224) return true;
+
   return false;
 }
 
 function isBlockedIpv6(ip) {
   const lower = ip.toLowerCase();
-
-  // Loopback / unspecified addresses are never valid public targets.
-  if (lower === "::1") return true;
-  if (lower === "::") return true;
 
   // IPv4-mapped IPv6 ::ffff:127.0.0.1 etc
   const mappedPrefix = "::ffff:";
@@ -74,27 +84,37 @@ function isBlockedIpv6(ip) {
     return true;
   }
 
+  // The rest of ::/96 is loopback (::1), unspecified (::), or the deprecated
+  // IPv4-compatible form (::127.0.0.1). No public address starts with "::".
+  if (lower.startsWith("::")) return true;
+
+  // Translation prefixes embed an IPv4 address, which may be a private one:
+  // NAT64 (64:ff9b::/96, 64:ff9b:1::/48) and 6to4 (2002::/16).
+  if (lower.startsWith("64:ff9b:") || lower.startsWith("2002:")) return true;
+
+  // Discard-only (100::/64) and documentation (2001:db8::/32) ranges.
+  if (lower.startsWith("100::") || lower.startsWith("2001:db8:")) return true;
+
   // Unique local IPv6 behaves like private LAN addressing.
   if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
 
-  // Link-local fe80::/10 (fe80..febf)
-  if (
-    lower.startsWith("fe8") ||
-    lower.startsWith("fe9") ||
-    lower.startsWith("fea") ||
-    lower.startsWith("feb")
-  ) {
-    return true;
-  }
+  // fe00::/8: link-local (fe80::/10), the deprecated site-local (fec0::/10),
+  // and the unassigned rest.
+  if (lower.startsWith("fe")) return true;
+
+  // Multicast (ff00::/8)
+  if (lower.startsWith("ff")) return true;
 
   return false;
 }
 
 /**
  * Resolve hostname to IPs and reject if any resolved IP is blocked.
- * This prevents straightforward SSRF and mitigates DNS rebinding by:
- *  - blocking private/loopback/link-local results,
- *  - re-validating for every redirect hop (caller responsibility).
+ * This is the fast first gate, run on every redirect hop (caller
+ * responsibility). It can't stop DNS rebinding on its own, because the
+ * connection resolves the host again: `safeLookup` closes that gap at
+ * connect time. It is also the only check for IP-literal URLs, which never
+ * reach a DNS lookup.
  *
  * NOTE: No SSRF protection is perfect without a network egress policy.
  * This is intended as an application-level guardrail.
@@ -152,4 +172,30 @@ async function assertPublicHost(hostname) {
   return { ips: records.map((r) => r.address) };
 }
 
-module.exports = { assertPublicHost, isBlockedIp };
+/**
+ * A drop-in for `dns.lookup` that refuses non-public addresses, used as the
+ * connection's own lookup. The address that passes here is the address the
+ * socket connects to, so DNS can't answer a separate check with a public
+ * address and the connection with a private one (DNS rebinding).
+ *
+ * @param {string} hostname - Host the connection is about to resolve
+ * @param {object} options - `dns.lookup` options passed by `net.connect`
+ * @param {Function} callback - `(err, address, family)`, or `(err, addresses)` when `options.all`
+ * @returns {void}
+ */
+function safeLookup(hostname, options, callback) {
+  const opts = options && typeof options === "object" ? options : {};
+
+  dnsCallback.lookup(hostname, { ...opts, all: true }, (err, addresses) => {
+    if (err) return callback(err);
+
+    if (!addresses.length || addresses.some((a) => isBlockedIp(a.address))) {
+      return callback(badRequest("SSRF_BLOCKED_IP", "Blocked host"));
+    }
+
+    if (opts.all) return callback(null, addresses);
+    return callback(null, addresses[0].address, addresses[0].family);
+  });
+}
+
+module.exports = { assertPublicHost, isBlockedIp, safeLookup };
