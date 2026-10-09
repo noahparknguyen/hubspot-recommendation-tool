@@ -80,6 +80,29 @@ Truncation logic inside `fetchPage` (tested via `fetchPage` with a mocked global
 - `htmlTruncated` is always present as a named field on the `fetchPage` return object
 - Unreadable body (`response.body` is `null`): throws `AppError` with code `FETCH_UNREADABLE_BODY`
 
+### `fetchDeadline.test.js`
+
+The fetch deadline and redirect handling inside `fetchPage`.
+
+- A body that stalls after the headers fails with `FETCH_TIMEOUT` at the deadline, rather than hanging
+- A redirect's body is cancelled before the redirect is followed, so its connection is released
+
+### `dnsRebinding.test.js`
+
+DNS rebinding against `fetchPage`, with a real local HTTP server.
+
+- The up-front check's DNS lookup answers with a public address, and the connection's own lookup answers `127.0.0.1`: the fetch fails with `SSRF_BLOCKED_IP`, and the local server receives no request
+
+### `extractResources.test.js`
+
+How `fetchPage` finds a page's external scripts and stylesheets.
+
+- Script `src` values in double, single, and no quotes, in any case
+- Lookalike tags (`<scripts>`) are not scripts, and inline scripts are skipped
+- Stylesheet links in either attribute order, and with extra `rel` tokens (`preload stylesheet`)
+- Links that aren't stylesheets are skipped
+- Crafted 2 MB pages of unclosed tag fragments finish in under a second
+
 ### `detectTechnologies.test.js`
 
 Phase 4: technology detection across all matcher signals.
@@ -143,6 +166,14 @@ SSRF protection layer in Phase 2 (page fetching).
 - Blocks `0.0.0.0/8` (current-network), `127.0.0.0/8` (loopback), `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16` (link-local), `100.64.0.0/10` (CGNAT)
 - Blocks IPv6 loopback (`::1`, `::`), ULA (`fc00::/7`), link-local (`fe80::/10`)
 - Blocks IPv4-mapped IPv6 that map to a blocked IPv4 address (`::ffff:127.0.0.1`)
+- Blocks reserved IPv4 ranges: protocol assignments, documentation, benchmarking (`198.18.0.0/15`), multicast, reserved, and broadcast, while their public neighbours pass
+- Blocks IPv6 forms that embed or stand in for private addresses: IPv4-compatible, NAT64, 6to4, discard-only, documentation, site-local, and multicast
+
+`safeLookup`:
+
+- Public addresses pass through, in both result shapes (`all: true` and a single address)
+- Any blocked address among the results → `SSRF_BLOCKED_IP`
+- DNS errors pass through unchanged
 
 `assertPublicHost`:
 
