@@ -4,7 +4,7 @@
   "description": "Minimal Node.js backend for the HubSpot Recommendation Tool, providing analysis APIs, CLI utilities, and optional static frontend serving for integrated deployments.",
   "main": "src/api/server.js",
   "engines": {
-    "node": ">=20.12"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "node --env-file-if-exists=.env src/api/server.js",
@@ -51,7 +51,7 @@
     "@eslint/js": "^9.0.0",
     "eslint": "^9.0.0",
     "globals": "^16.0.0",
-    "jest": "^29.7.0",
+    "jest": "^30.5.2",
     "prettier": "^3.0.0"
   }
 }

@@ -4,7 +4,7 @@ This guide is for developers who need to run, debug, and extend the HubSpot Reco
 
 ## Prerequisites
 
-- Node.js `>=20.12` (required for `--env-file-if-exists` used by local dev scripts; `>=20` is the package minimum but `20.12+` is strongly recommended)
+- Node.js `>=24`, the version the Docker image and CI run
 - npm
 - Docker (for integrated local/prod-parity runs)
 

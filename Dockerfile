@@ -1,6 +1,6 @@
 # ---------- Stage 1: build frontend ----------
-# Node 20 matches backend engines (>=20.12), .nvmrc, and CI — keep all four in sync.
-FROM node:20-alpine AS frontend-build
+# Node 24 matches backend engines (>=24), backend/.nvmrc, and CI. Keep all four in sync.
+FROM node:24-alpine AS frontend-build
 WORKDIR /frontend
 
 COPY frontend/package*.json ./
@@ -11,7 +11,7 @@ RUN npm run build
 
 
 # ---------- Stage 2: install backend deps ----------
-FROM node:20-alpine AS backend-deps
+FROM node:24-alpine AS backend-deps
 WORKDIR /backend
 
 COPY backend/package*.json ./
@@ -19,7 +19,7 @@ RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit
 
 
 # ---------- Stage 3: runtime image ----------
-FROM node:20-alpine AS runtime
+FROM node:24-alpine AS runtime
 WORKDIR /app
 
 RUN apk add --no-cache dumb-init

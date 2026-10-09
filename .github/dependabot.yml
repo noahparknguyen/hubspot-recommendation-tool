@@ -1,0 +1,12 @@
+# Dependabot keeps the actions the CI workflow runs up to date, once a month. A new version
+# waits a week before it is proposed, so a bad release has time to be caught and pulled first.
+# npm packages are not updated on a schedule: this project was handed off, so they change only
+# when a security update fixes a known vulnerability, which Dependabot proposes straight away.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7

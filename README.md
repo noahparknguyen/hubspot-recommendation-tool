@@ -7,9 +7,9 @@ Built as a capstone project by Team Debug (Algonquin College) for Inbox, a HubSp
 [![CI](https://img.shields.io/github/actions/workflow/status/noahparknguyen/hubspot-recommendation-tool/ci.yml?logo=githubactions&logoColor=white&label=CI)](https://github.com/noahparknguyen/hubspot-recommendation-tool/actions/workflows/ci.yml)
 [![GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](https://react.dev)
-[![Node](https://img.shields.io/badge/Node-20-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/Node-24-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)](https://vite.dev)
-[![Jest](https://img.shields.io/badge/Jest-29-c21325?logo=jest&logoColor=white)](https://jestjs.io)
+[![Jest](https://img.shields.io/badge/Jest-30-c21325?logo=jest&logoColor=white)](https://jestjs.io)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker&logoColor=white)](https://docker.com)
 
 🔗 **Live Demo:** [hubspot-recommendation-tool.onrender.com](https://hubspot-recommendation-tool.onrender.com/) — hosted on a free tier that sleeps when idle, so the first load can take up to a minute.
@@ -86,7 +86,7 @@ curl "http://localhost:3001/api/analyze?url=https://react.dev"
 | Layer          | Technology                                                                               |
 | -------------- | ---------------------------------------------------------------------------------------- |
 | Frontend       | React 18, Vite 7                                                                         |
-| Backend        | Node.js 20 (vanilla `http` — no framework)                                               |
+| Backend        | Node.js 24 (vanilla `http` — no framework)                                               |
 | Detection data | [WebAppAnalyzer](https://github.com/enthec/webappanalyzer) fingerprint dataset (GPL-3.0) |
 | HTML parsing   | Cheerio                                                                                  |
 | Testing        | Jest (backend), Vitest (frontend)                                                        |

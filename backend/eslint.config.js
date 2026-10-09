@@ -1,7 +1,7 @@
 const js = require("@eslint/js");
 const globals = require("globals");
 
-// Flat config (ESLint 9+). Backend is CommonJS on Node 20; tests run in Jest.
+// Flat config (ESLint 9+). Backend is CommonJS on Node 24; tests run in Jest.
 // Formatting is Prettier's job (see root .prettierrc), so no stylistic rules.
 module.exports = [
   { ignores: ["node_modules", "coverage", "data/vendor"] },
