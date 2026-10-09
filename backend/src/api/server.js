@@ -3,7 +3,7 @@ const { URL } = require("node:url");
 const { randomUUID } = require("node:crypto");
 
 const { handleAnalyze } = require("./routes/analyze");
-const { initTechDb } = require("../core/analyzer");
+const { startAnalysisThread } = require("../core/worker/runAnalysis");
 const { config } = require("../core/config");
 const { tryServeStatic, tryServeSpaFallback } = require("./static");
 const { isAuthorized, sendAuthChallenge } = require("./auth");
@@ -328,12 +328,9 @@ server.on("clientError", (err, socket) => {
 
 const port = config.port;
 
-// Preload the technology DB at startup for faster first requests.
-// Do not crash the server if preload fails; the analyzer can lazy-load later.
-initTechDb().catch((err) => {
-  const msg = err && (err.message || String(err));
-  console.warn("Tech DB preload failed; will lazy-load on first request:", msg);
-});
+// Start the analysis thread now, so it loads the technology DB before the
+// first request. A failed load is logged there and retried on the next request.
+startAnalysisThread();
 
 server.listen(port, "0.0.0.0", () => {
   console.log(`API listening on port ${port}`);

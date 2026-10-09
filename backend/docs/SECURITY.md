@@ -37,6 +37,17 @@ Limitations:
 
 - Aggressive target-side anti-bot/firewall controls can still cause fetch failure or incomplete signals
 
+### Analysis time limit
+
+Files: `src/core/worker/runAnalysis.js`, `src/core/worker/analysisThread.js`
+
+- Detection runs on a worker thread, so a page crafted to make the dataset's patterns backtrack can't stall the server's main thread
+- Past `ANALYSIS_TIMEOUT_MS`, the thread is stopped mid-analysis and the request gets a `504`; the next analysis starts a fresh thread
+
+Limitations:
+
+- One thread runs one analysis at a time, so a slow page delays the analyses queued behind it, by up to `ANALYSIS_TIMEOUT_MS` each
+
 ### HTTP Basic Auth
 
 Files: `src/api/server.js`, `src/api/auth.js`

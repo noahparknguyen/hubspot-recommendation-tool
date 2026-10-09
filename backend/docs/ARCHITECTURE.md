@@ -30,12 +30,15 @@ Main directories:
   - `src/core/normalize/*`
   - `src/core/detect/*`
   - `src/core/report/*`
+  - `src/core/worker/*`
 
 The route layer stays thin and delegates logic to core modules.
 
 ## Five-Phase Analysis Pipeline
 
 Pipeline entry point: `analyzeUrl()` in `src/core/analyzer.js`.
+
+Phases 3 to 5 are CPU-bound, so they run on a worker thread (`src/core/worker/`) under a time limit, `ANALYSIS_TIMEOUT_MS`. Some dataset patterns backtrack badly on crafted pages, and a regex can't be interrupted once it starts. On the server's main thread, one such page would stall every request, health checks included. The worker thread can be stopped mid-regex: the request gets a `504`, and the next analysis starts a fresh thread. The thread runs one analysis at a time, and each one's time limit starts when the thread takes it.
 
 ### Phase 1 - Database Loading (`loadTechDb`)
 
@@ -51,7 +54,7 @@ Dataset source: [WebAppAnalyzer](https://github.com/enthec/webappanalyzer) by en
 - Verifies required files exist before loading
 - Parses JSON and merges technologies into one map by technology name
 - Builds a lightweight matcher index (`headers`, `scriptSrc`, `meta`, `url`, `cookies`, `scripts`, `dom`, `text`, `html`, `css`, plus relation keys)
-- Loaded once per process and cached in `analyzer.js`
+- Loaded once by the analysis thread and cached there (`initTechDb()` in `analyzeFetched.js`)
 
 ### Phase 2 - Page Fetching (`fetchPage`)
 
@@ -127,7 +130,7 @@ Files:
 - `src/core/report/groupDetections.js`
 - `src/core/report/cleanReport.js`
 
-Flow inside `analyzer.js`:
+Flow inside `analyzeFetched.js`:
 
 1. `enrichDetections`: add description, website, icon, category/group taxonomy
 2. `buildSummary`: compute totals and counts by group/category
@@ -139,7 +142,7 @@ Important implementation detail:
 - Mapping file path defaults to `backend/data/alternatives/hubspot-mapping.json`
 - If mapping file is missing or invalid, recommendations fall back to empty instead of failing the request
 
-API response shaping then happens in `buildSimpleReport()` in `cleanReport.js`.
+API response shaping then happens in `buildFrontendReport()` in `cleanReport.js`.
 
 ## Frontend-Backend Integration
 
@@ -177,7 +180,8 @@ GET /analyze?url=... or /api/analyze?url=...
   -> analyze route input validation
   -> analysisLimiter.acquire() (concurrency/queue guardrail)
   -> analyzeUrl() five-phase pipeline
-  -> buildSimpleReport()
+     (phases 3-5 on the analysis thread; 504 past ANALYSIS_TIMEOUT_MS)
+  -> buildFrontendReport()
   -> JSON response
 ```
 

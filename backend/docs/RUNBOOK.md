@@ -80,7 +80,7 @@ curl -i "http://localhost:3001/api/not-found"
 | Health endpoint returns `401` | Auth enabled and health not exempt                  | Set `AUTH_ALLOW_HEALTH=1` or authenticate probe                                   |
 | Analyze returns `400`         | Bad URL input or SSRF block                         | Validate `url`, use public `http/https` target                                    |
 | Analyze returns `503`         | Overload queue full or shutdown mode                | Retry; tune `MAX_CONCURRENT_ANALYSES`/`MAX_QUEUED_ANALYSES`; check shutdown state |
-| Analyze returns `413`/`504`   | Response too large or timeout                       | Tune `MAX_FETCH_BYTES`/`FETCH_TIMEOUT_MS`                                         |
+| Analyze returns `413`/`504`   | Response too large, or fetch or analysis timeout    | Tune `MAX_FETCH_BYTES`/`FETCH_TIMEOUT_MS`/`ANALYSIS_TIMEOUT_MS`                   |
 | Repeated `401` and then `429` | Invalid credentials triggering limiter              | Correct creds; wait `Retry-After`; adjust auth rate-limit vars if needed          |
 | Frontend 404/blank            | Static mode off or wrong dist path                  | Enable `SERVE_STATIC`; set correct `STATIC_DIST_DIR`; redeploy                    |
 | SPA route refresh 404         | Fallback not reached due proxy or request shape     | Verify non-API HTML navigation and proxy pass-through                             |

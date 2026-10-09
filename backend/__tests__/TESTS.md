@@ -1,6 +1,6 @@
 # Backend Test Suite
 
-All tests are Jest unit tests using `jest.resetModules()` + `jest.doMock()` per test to prevent cross-test state leakage.
+All tests are Jest unit tests using `jest.resetModules()` + `jest.doMock()` per test to prevent cross-test state leakage. The exception is `runAnalysis.test.js`, whose tests share one real worker thread.
 
 Run tests: `npm test`  
 Run with coverage: `npm run test:coverage`
@@ -32,13 +32,22 @@ HTTP handler for `GET /analyze`.
 
 ### `analyzer.test.js`
 
-Orchestrator that wires all analysis phases together.
+Orchestrator that wires all analysis phases together. A stand-in for `runAnalysis` runs phases 3-5 on the test's own thread, where the mocks apply.
 
 - `initTechDb` loads the DB exactly once even with concurrent calls
 - `analyzeUrl` produces a stable output shape with detections sorted by confidence desc, then name asc
 - `htmlTruncated: true` from `fetchPage` is propagated into the report object
 - `htmlTruncated` defaults to `false` when `fetchPage` does not set it
 - `_debugSignals` is included only when `config.debugSignals=true`
+
+### `runAnalysis.test.js`
+
+The analysis worker thread, run for real: a real thread with the real dataset.
+
+- The thread returns the same result as analyzing on the calling thread
+- A page that makes the dataset's patterns backtrack is stopped at the time limit with a 504 `AppError` (`ANALYSIS_TIMEOUT`), while the calling thread stays free
+- The stopped thread stops using CPU
+- The next analysis after a timeout runs on a fresh thread
 
 ### `cleanReport.test.js`
 

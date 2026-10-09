@@ -8,51 +8,11 @@
 // 5) Generate HubSpot recommendations and build the UI-oriented report shape
 //
 // This file intentionally keeps the orchestration simple and stable:
-// - dataset is loaded once per process and cached
+// - steps 2-5 run on the analysis worker thread, under a time limit (worker/runAnalysis.js)
+// - that thread loads the dataset once and caches it
 // - analysis is deterministic for a given fetch result + dataset
 const { fetchPage } = require("./fetch/fetchPage");
-const { buildSignals } = require("./normalize/signals");
-const { loadTechDb } = require("./techdb/loadTechDb");
-const { detectTechnologies } = require("./detect/detectTechnologies");
-const { enrichDetections } = require("./report/enrichDetections");
-const { buildRecommendations } = require("./report/recommendations");
-const { buildSummary } = require("./report/summarize");
-const { groupDetections } = require("./report/groupDetections");
-const { config } = require("./config");
-
-const MIN_CONFIDENCE = 50; // report-aligned threshold
-
-let cachedDb = null;
-let dbInitPromise = null;
-
-// --- Phase 1 bootstrap: process-wide dataset cache ---
-/**
- * Loads and caches the technology database for the current process.
- * Reuses the same in-memory object for all requests to avoid disk IO on every analysis.
- *
- * @returns {Promise<object>} Loaded technology database object from `loadTechDb()`
- */
-async function initTechDb() {
-  if (cachedDb) return cachedDb;
-  if (!dbInitPromise) {
-    dbInitPromise = (async () => {
-      const db = await loadTechDb();
-      cachedDb = db;
-      return db;
-    })().finally(() => {
-      // Allow retry on failure:
-      // - on a transient filesystem issue, the next request can attempt re-init
-      // - on success, cachedDb is set and dbInitPromise becomes irrelevant
-      if (!cachedDb) {
-        console.error(
-          "[analyzer] Tech DB failed to load; will retry on next request.",
-        );
-        dbInitPromise = null;
-      }
-    });
-  }
-  return dbInitPromise;
-}
+const { runAnalysis } = require("./worker/runAnalysis");
 
 // --- Phases 2-5 orchestration entrypoint ---
 /**
@@ -62,12 +22,11 @@ async function initTechDb() {
  * @returns {Promise<object>} Full analysis report with fetch metadata, detections, and recommendations.
  *   Includes `htmlTruncated: boolean` when the HTML body was cut at the configured byte cap
  *   (see fetchPage). Report consumers (e.g. buildFrontendReport) forward this flag to callers.
- * @throws {Error} Propagates operational errors from fetch, normalization, detection, or report stages
+ * @throws {Error} Propagates operational errors from fetch, normalization, detection, or report stages,
+ *   and a 504 AppError when phases 3-5 run past `config.analysis.timeoutMs`
  */
 async function analyzeUrl(url) {
   const totalStart = Date.now();
-
-  const db = await initTechDb();
 
   // Phase 2: fetch the primary HTML and a bounded subset of external JS/CSS.
   // External resources are best-effort and exist to improve detection coverage without
@@ -77,40 +36,9 @@ async function analyzeUrl(url) {
 
   const analysisStart = Date.now();
 
-  // Phase 3: normalize to stable signals so matchers operate over consistent inputs.
-  const signals = buildSignals(fetched);
-
-  // Optional internal-only debug signals (never required for frontend output)
-  const debugSignals = config.debugSignals
-    ? {
-        metaKeys: Object.keys(signals.meta || {}).slice(0, 50),
-        scriptSrcPreview: (signals.scriptSrc || []).slice(0, 20),
-        cookieNames: Array.isArray(signals.cookies) ? signals.cookies : [],
-      }
-    : undefined;
-
-  // Phase 4: run Wappalyzer-style matchers across multiple signal types (headers, DOM, etc.)
-  const detections = detectTechnologies(db, signals, {
-    minConfidence: MIN_CONFIDENCE,
-  });
-  // Phase 5: attach taxonomy + human-friendly metadata (used by report + recommendation logic)
-  const enriched = enrichDetections(db, detections);
-
-  // Keep output ordering deterministic so repeated runs are stable and diff-friendly.
-  // Stable ordering: confidence desc, then name asc
-  enriched.sort((a, b) => {
-    if ((b.confidence || 0) !== (a.confidence || 0))
-      return (b.confidence || 0) - (a.confidence || 0);
-    return (a.name || "").localeCompare(b.name || "");
-  });
-
-  const summary = buildSummary(enriched);
-  const groupedDetections = groupDetections(enriched);
-
-  // Keep recommendations consistent with the report’s detection threshold unless a stricter value is explicitly desired.
-  const recommendations = buildRecommendations(enriched, {
-    minConfidence: MIN_CONFIDENCE,
-  });
+  // Phases 3-5 (see analyzeFetched.js), on the analysis thread.
+  const { detections, recommendations, summary, groups, debugSignals } =
+    await runAnalysis(fetched);
 
   const analysisMs = Date.now() - analysisStart;
   const totalMs = Date.now() - totalStart;
@@ -147,10 +75,10 @@ async function analyzeUrl(url) {
       analysisMs,
       totalMs,
     },
-    detections: enriched,
+    detections,
     recommendations,
     summary,
-    groups: groupedDetections,
+    groups,
   };
 
   if (debugSignals) report._debugSignals = debugSignals;
@@ -169,4 +97,4 @@ function pickHeaders(headers, keys) {
   return out;
 }
 
-module.exports = { analyzeUrl, initTechDb };
+module.exports = { analyzeUrl };

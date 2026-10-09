@@ -7,10 +7,24 @@
  * - outputs are stably sorted (confidence desc then name asc)
  * - htmlTruncated from fetchPage is propagated to the returned report object
  * - debugSignals are included only when config.debugSignals is enabled
+ *
+ * The analysis thread itself is covered by runAnalysis.test.js.
  */
 describe("core/analyzer - initTechDb / analyzeUrl", () => {
   beforeEach(() => {
     jest.resetModules();
+    // The real runAnalysis hands the page to a worker thread, which these
+    // mocks can't reach. This stand-in runs the same code on this thread.
+    jest.doMock("../src/core/worker/runAnalysis", () => {
+      const {
+        analyzeFetched,
+        initTechDb,
+      } = require("../src/core/analyzeFetched");
+      return {
+        runAnalysis: async (fetched) =>
+          analyzeFetched(await initTechDb(), fetched),
+      };
+    });
   });
 
   test("initTechDb loads DB only once (even with concurrent calls)", async () => {
@@ -46,7 +60,7 @@ describe("core/analyzer - initTechDb / analyzeUrl", () => {
       groupDetections: jest.fn(() => ({})),
     }));
 
-    const { initTechDb } = require("../src/core/analyzer");
+    const { initTechDb } = require("../src/core/analyzeFetched");
 
     const [a, b, c] = await Promise.all([
       initTechDb(),

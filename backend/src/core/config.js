@@ -35,6 +35,15 @@ const config = {
     maxBytes: num(process.env.MAX_FETCH_BYTES, 2_000_000),
   },
 
+  analysis: {
+    // Time limit for detecting a fetched page's technologies. Some dataset
+    // patterns backtrack badly on crafted pages. Past this, the analysis is
+    // stopped and the request gets a 504. It's generous because large real
+    // pages are slow on a small server: a 2 MB article takes over a minute
+    // on a tenth of a CPU.
+    timeoutMs: num(process.env.ANALYSIS_TIMEOUT_MS, 60_000),
+  },
+
   env: str(process.env.NODE_ENV, "development"),
 
   logging: {

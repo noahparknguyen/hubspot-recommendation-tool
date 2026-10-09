@@ -37,6 +37,19 @@ This document lists every backend environment variable defined in `src/core/conf
   - too low: false timeout failures (`504`)
   - too high: longer resource hold under slow targets
 
+### `ANALYSIS_TIMEOUT_MS`
+
+- Type: number
+- Default: `60000`
+- Purpose: time limit for detecting a fetched page's technologies, on the
+  analysis thread. Past it, the analysis is stopped and the request gets a
+  `504`. Large real pages are slow on a small server: a 2 MB article takes over
+  a minute on a tenth of a CPU, so keep this generous there.
+- Misconfigured impact:
+  - too low: large legitimate pages fail with `504`
+  - too high: a page crafted to be slow holds the analysis thread longer,
+    delaying the analyses queued behind it
+
 ### `MAX_FETCH_BYTES`
 
 - Type: number

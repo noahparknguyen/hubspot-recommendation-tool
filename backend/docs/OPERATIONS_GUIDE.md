@@ -118,7 +118,7 @@ Restart service.
 | `/analyze` returns `400`        | Invalid URL, unsupported protocol, SSRF blocked host/IP                         | Verify `url` query; test public target URL                                            |
 | `/analyze` returns `503`        | Analysis limiter overloaded or server shutting down                             | Reduce request burst; increase `MAX_CONCURRENT_ANALYSES`/`MAX_QUEUED_ANALYSES`; retry |
 | `/analyze` returns `413`        | Response body exceeded max bytes                                                | Increase `MAX_FETCH_BYTES` cautiously                                                 |
-| `/analyze` returns `504`        | Fetch timeout                                                                   | Increase `FETCH_TIMEOUT_MS`; test target availability                                 |
+| `/analyze` returns `504`        | Fetch timeout, or analysis timeout (error `Analysis timed out`)                 | Increase `FETCH_TIMEOUT_MS` or `ANALYSIS_TIMEOUT_MS`; test target availability        |
 | Repeated `401` then `429`       | Bad credentials triggering auth-failure limiter                                 | Correct credentials; wait `Retry-After`; consider adjusting auth rate-limit env vars  |
 | Frontend 404 in integrated mode | `SERVE_STATIC=0` or wrong `STATIC_DIST_DIR`                                     | Set static vars, confirm build path, restart                                          |
 | SPA route refresh returns 404   | Fallback not reached (accept/proxy/path issue)                                  | Verify request is non-API and accepts HTML; check proxy rules                         |
