@@ -4,6 +4,17 @@ const { assertPublicHost } = require("./ssrf");
 const { config } = require("../config");
 const { AppError } = require("../errors");
 
+// One deadline covers a whole hop: the headers and the body alike.
+function timeoutError(cause) {
+  return new AppError({
+    code: "FETCH_TIMEOUT",
+    message: "Fetch timed out",
+    statusCode: 504,
+    expose: true,
+    cause,
+  });
+}
+
 /**
  * Read a response body with a soft cap: truncate at `maxBytes` rather than
  * throwing. The caller receives the partial content along with a `truncated`
@@ -41,7 +52,16 @@ async function readBodyWithLimit(res, { maxBytes, controller }) {
   let truncated = false;
 
   while (true) {
-    const { done, value } = await reader.read();
+    let chunk;
+    try {
+      chunk = await reader.read();
+    } catch (err) {
+      // The deadline aborted the read. A server that sends its headers and then
+      // trickles the body times out like one that never answers.
+      if (controller.signal.aborted) throw timeoutError(err);
+      throw err;
+    }
+    const { done, value } = chunk;
     if (done) break;
 
     const remaining = maxBytes - received;
@@ -75,6 +95,14 @@ async function readBodyWithLimit(res, { maxBytes, controller }) {
   }
 
   return { buffer: Buffer.concat(chunks), truncated };
+}
+
+async function discardBody(res) {
+  try {
+    await res.body?.cancel?.();
+  } catch {
+    // Already closed or errored: nothing left to release.
+  }
 }
 
 function uniq(arr) {
@@ -155,14 +183,7 @@ async function fetchResource(
 
   for (let redirects = 0; redirects <= maxRedirects; redirects++) {
     const remainingMs = deadlineMs - Date.now();
-    if (remainingMs <= 0) {
-      throw new AppError({
-        code: "FETCH_TIMEOUT",
-        message: "Fetch timed out",
-        statusCode: 504,
-        expose: true,
-      });
-    }
+    if (remainingMs <= 0) throw timeoutError();
 
     let urlObj;
     try {
@@ -193,97 +214,95 @@ async function fetchResource(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), remainingMs);
 
-    let res;
     try {
-      res = await fetch(urlObj.toString(), {
-        method: "GET",
-        redirect: "manual",
-        signal: controller.signal,
-        headers: {
-          "User-Agent": userAgent,
-          Accept: accept,
-        },
-      });
-    } catch (err) {
-      if (err?.name === "AbortError") {
+      let res;
+      try {
+        res = await fetch(urlObj.toString(), {
+          method: "GET",
+          redirect: "manual",
+          signal: controller.signal,
+          headers: {
+            "User-Agent": userAgent,
+            Accept: accept,
+          },
+        });
+      } catch (err) {
+        if (err?.name === "AbortError") throw timeoutError(err);
+
         throw new AppError({
-          code: "FETCH_TIMEOUT",
-          message: "Fetch timed out",
-          statusCode: 504,
+          code: "FETCH_FAILED",
+          message: "Fetch failed",
+          statusCode: 502,
           expose: true,
           cause: err,
         });
       }
 
-      throw new AppError({
-        code: "FETCH_FAILED",
-        message: "Fetch failed",
-        statusCode: 502,
-        expose: true,
-        cause: err,
+      // Manual redirect handling is intentional: automatic follow would skip our
+      // per-hop host validation guarantees.
+      if (
+        [301, 302, 303, 307, 308].includes(res.status) &&
+        res.headers.get("location")
+      ) {
+        // An unread body keeps its connection busy, so release it before the
+        // next hop.
+        await discardBody(res);
+
+        if (redirects === maxRedirects) {
+          throw new AppError({
+            code: "FETCH_TOO_MANY_REDIRECTS",
+            message: `Too many redirects (max ${maxRedirects})`,
+            statusCode: 502,
+            expose: true,
+          });
+        }
+
+        const next = new URL(res.headers.get("location"), urlObj);
+
+        if (!["http:", "https:"].includes(next.protocol)) {
+          throw new AppError({
+            code: "FETCH_REDIRECT_UNSUPPORTED_PROTOCOL",
+            message: "Redirected to non-http(s) URL",
+            statusCode: 502,
+            expose: true,
+          });
+        }
+
+        currentUrl = next.toString();
+        continue;
+      }
+
+      const headers = {};
+      for (const [k, v] of res.headers.entries()) headers[k.toLowerCase()] = v;
+
+      // Preserve all Set-Cookie headers when available (Node/undici extension)
+      if (typeof res.headers.getSetCookie === "function") {
+        headers["set-cookie"] = res.headers.getSetCookie();
+      }
+
+      // readBodyWithLimit returns { buffer, truncated }. The `truncated` flag is
+      // true when the response body was cut off at maxBytes, so callers can
+      // surface the partial result (e.g. add a notice in the API response).
+      const { buffer, truncated } = await readBodyWithLimit(res, {
+        maxBytes,
+        controller,
       });
+
+      return {
+        finalUrl: currentUrl,
+        status: res.status,
+        statusText: res.statusText,
+        headers,
+        contentType: headers["content-type"] || "",
+        bytes: buffer.length,
+        body: buffer.toString("utf8"),
+        // true when the response exceeded maxBytes and was cut at the cap
+        truncated,
+      };
     } finally {
+      // Cleared only once the hop is over, so the deadline covers the body too.
       clearTimeout(timeoutId);
     }
-
-    // Manual redirect handling is intentional: automatic follow would skip our
-    // per-hop host validation guarantees.
-    if (
-      [301, 302, 303, 307, 308].includes(res.status) &&
-      res.headers.get("location")
-    ) {
-      if (redirects === maxRedirects) {
-        throw new AppError({
-          code: "FETCH_TOO_MANY_REDIRECTS",
-          message: `Too many redirects (max ${maxRedirects})`,
-          statusCode: 502,
-          expose: true,
-        });
-      }
-
-      const next = new URL(res.headers.get("location"), urlObj);
-
-      if (!["http:", "https:"].includes(next.protocol)) {
-        throw new AppError({
-          code: "FETCH_REDIRECT_UNSUPPORTED_PROTOCOL",
-          message: "Redirected to non-http(s) URL",
-          statusCode: 502,
-          expose: true,
-        });
-      }
-
-      currentUrl = next.toString();
-      continue;
-    }
-
-    const headers = {};
-    for (const [k, v] of res.headers.entries()) headers[k.toLowerCase()] = v;
-
-    // Preserve all Set-Cookie headers when available (Node/undici extension)
-    if (typeof res.headers.getSetCookie === "function") {
-      headers["set-cookie"] = res.headers.getSetCookie();
-    }
-
-    // readBodyWithLimit now returns { buffer, truncated } instead of a plain
-    // Buffer. The `truncated` flag is true when the response body was cut off
-    // at maxBytes. We propagate it to callers so they can decide how to
-    // surface the partial result (e.g. add a notice in the API response).
-    const { buffer, truncated } = await readBodyWithLimit(res, {
-      maxBytes,
-      controller,
-    });
-
-    return {
-      finalUrl: currentUrl,
-      status: res.status,
-      statusText: res.statusText,
-      headers,
-      contentType: headers["content-type"] || "",
-      bytes: buffer.length,
-      body: buffer.toString("utf8"),
-      // true when the response exceeded maxBytes and was cut at the cap
-      truncated,
-    };
   }
 
   throw new AppError({
