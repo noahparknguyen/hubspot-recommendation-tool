@@ -49,6 +49,15 @@ async function main() {
   }
 
   if (
+    !Number.isFinite(config.api.queueTimeoutMs) ||
+    config.api.queueTimeoutMs <= 0
+  ) {
+    errors.push(
+      `ANALYSIS_QUEUE_TIMEOUT_MS must be a positive integer (got: ${config.api.queueTimeoutMs})`,
+    );
+  }
+
+  if (
     !Number.isFinite(config.analysis.timeoutMs) ||
     config.analysis.timeoutMs <= 0
   ) {

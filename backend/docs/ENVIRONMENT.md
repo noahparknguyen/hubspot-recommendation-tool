@@ -124,6 +124,18 @@ This document lists every backend environment variable defined in `src/core/conf
   - too low: more `503 ANALYZE_OVERLOADED`
   - too high: memory pressure under bursts
 
+### `ANALYSIS_QUEUE_TIMEOUT_MS`
+
+- Type: number
+- Default: `30000`
+- Purpose: how long a request may wait in the analysis queue for a free slot.
+  Past it, the request gets `503 ANALYZE_QUEUE_TIMEOUT`, and the frontend shows
+  its "server is busy" message. A queued request whose visitor disconnects
+  leaves the queue straight away, whatever this is set to.
+- Misconfigured impact:
+  - too low: busy-server errors during short bursts that would have cleared
+  - too high: visitors wait a long time before learning the server is busy
+
 ### `ANALYZE_RATE_LIMIT_PER_HOUR`
 
 - Type: number

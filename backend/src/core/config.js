@@ -81,6 +81,8 @@ const config = {
     maxConcurrentAnalyses: num(process.env.MAX_CONCURRENT_ANALYSES, 8),
     // Reject requests when the wait queue exceeds this size (keeps memory bounded).
     maxQueuedAnalyses: num(process.env.MAX_QUEUED_ANALYSES, 32),
+    // How long a request may wait in that queue before it gets a 503.
+    queueTimeoutMs: num(process.env.ANALYSIS_QUEUE_TIMEOUT_MS, 30_000),
     // Analyses one client may run per hour. 0 turns the limit off. Meant for a
     // public demo. Behind a proxy it needs TRUST_PROXY_HOPS, or every client
     // shares the proxy's address, and so one limit.

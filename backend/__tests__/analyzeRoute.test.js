@@ -8,6 +8,7 @@
  * - AppError with expose=true passes message through; expose=false shows "Request failed"
  * - non-AppError (generic Error) returns 500
  * - limiter release is always called on both success and error paths
+ * - a visitor who leaves while queued gives up their place without an analysis
  * - the optional per-client limit: off by default, blocks one client past its
  *   hourly maximum, ignores invalid URLs, and can't be escaped with a forged
  *   X-Forwarded-For
@@ -17,19 +18,24 @@
  * buildSimpleReport is an internal detail of cleanReport.js and is never imported
  * directly by the route.
  */
+const { EventEmitter } = require("node:events");
+
 describe("api/routes/analyze - handleAnalyze", () => {
+  // An EventEmitter, so a test can emit "close" as if the visitor left.
   function mkRes() {
-    return {
+    return Object.assign(new EventEmitter(), {
       statusCode: 0,
       headers: {},
       body: "",
+      writableFinished: false,
       setHeader(k, v) {
         this.headers[String(k).toLowerCase()] = v;
       },
       end(body) {
         this.body = body || "";
+        this.writableFinished = true;
       },
-    };
+    });
   }
 
   function mkUrl(path) {
@@ -337,6 +343,54 @@ describe("api/routes/analyze - handleAnalyze", () => {
 
     expect(res.statusCode).toBe(500);
     expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  test("a visitor who leaves while queued gives up their place", async () => {
+    // The real limiter: resetModules doesn't clear earlier tests' doMock of it.
+    jest.dontMock("../src/api/analysisLimiter");
+    jest.doMock("../src/core/config", () => ({
+      config: {
+        env: "test",
+        api: {
+          maxConcurrentAnalyses: 1,
+          maxQueuedAnalyses: 1,
+          queueTimeoutMs: 60_000,
+          analyzeRateLimitPerHour: 0,
+        },
+        http: { trustProxyHops: 0 },
+      },
+    }));
+    let finishFirst;
+    const analyzeUrl = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          finishFirst = () => resolve({ ok: true });
+        }),
+    );
+    jest.doMock("../src/core/analyzer", () => ({ analyzeUrl }));
+    jest.doMock("../src/core/report/cleanReport", () => ({
+      buildFrontendReport: jest.fn((report) => report),
+    }));
+
+    const { handleAnalyze } = require("../src/api/routes/analyze");
+    const url = mkUrl("/analyze?url=https://example.com");
+
+    // The first request takes the only slot, and the second queues behind it.
+    const firstRes = mkRes();
+    const first = handleAnalyze({}, firstRes, url);
+    const secondRes = mkRes();
+    const second = handleAnalyze({}, secondRes, url);
+    await new Promise((r) => setImmediate(r));
+
+    // The second visitor leaves before any answer.
+    secondRes.emit("close");
+    await second;
+    expect(secondRes.statusCode).toBe(499);
+
+    finishFirst();
+    await first;
+    expect(firstRes.statusCode).toBe(200);
+    expect(analyzeUrl).toHaveBeenCalledTimes(1);
   });
 
   // ── Per-client analysis limit ─────────────────────────────────────────────

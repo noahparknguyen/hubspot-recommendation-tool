@@ -99,6 +99,8 @@ File: `src/api/analysisLimiter.js`
 - In-memory max concurrent analysis slots
 - Bounded queue
 - Returns `503` overload error when queue full
+- A queued request waits at most `ANALYSIS_QUEUE_TIMEOUT_MS`, then gets a `503`
+- A queued request whose visitor disconnects leaves the queue, so it never costs an analysis
 
 ### Static file path traversal protection
 

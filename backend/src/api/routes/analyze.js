@@ -125,7 +125,15 @@ async function handleAnalyze(req, res, requestUrl) {
     // analysis includes outbound fetches and regex matching; without a limiter, parallel requests
     // can degrade the service or trigger upstream blocking. This keeps concurrency bounded and
     // provides a clear retryable failure mode upstream (503 in limiter implementation).
-    const release = await analysisLimiter.acquire();
+    //
+    // A visitor who leaves while queued gives up their place, rather than
+    // costing a full analysis nobody will see. "close" also fires after a
+    // normal response, which writableFinished tells apart.
+    const visitorLeft = new AbortController();
+    res.on("close", () => {
+      if (!res.writableFinished) visitorLeft.abort();
+    });
+    const release = await analysisLimiter.acquire(visitorLeft.signal);
     try {
       const report = await analyzeUrl(normalized.url);
       // buildFrontendReport strips all fields not consumed by the React frontend,

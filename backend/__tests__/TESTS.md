@@ -16,6 +16,9 @@ Concurrency limiter that gates `/analyze` requests.
 - Slot acquisition up to `MAX_CONCURRENT_ANALYSES`
 - Queued requests resolve when a slot is released
 - Queue overflow returns a 503 `AppError` with code `ANALYZE_OVERLOADED`
+- A queued request that waits past `ANALYSIS_QUEUE_TIMEOUT_MS` gets a 503 `ANALYZE_QUEUE_TIMEOUT` and frees its place
+- A queued request whose client leaves is dropped with a 499 `ANALYZE_CLIENT_GONE`, and the slot goes to the next request
+- A request that already holds a slot is unaffected by its queue deadline or a later abort
 
 ### `analyzeRoute.test.js`
 
@@ -29,6 +32,7 @@ HTTP handler for `GET /analyze`.
 - `AppError` with `expose=false` returns `"Request failed"` — internal message is hidden
 - Generic non-`AppError` returns 500
 - Limiter `release()` is always called on both success and error paths, including when `buildFrontendReport` itself throws
+- A visitor who disconnects while queued gives up their place, and no analysis runs for them
 - The optional per-client limit is off by default
 - With the limit on, one client past its hourly maximum gets `429` with `Retry-After`, while other clients carry on
 - Requests with an invalid URL don't count toward the limit

@@ -116,7 +116,7 @@ Restart service.
 | Server exits on start           | Invalid config, missing auth creds when auth enabled                            | Run `npm run validate-config`; set required env vars; retry start                     |
 | `/health` is `401`              | Auth enabled and health not exempt                                              | Set `AUTH_ALLOW_HEALTH=1` or configure probe credentials                              |
 | `/analyze` returns `400`        | Invalid URL, unsupported protocol, SSRF blocked host/IP                         | Verify `url` query; test public target URL                                            |
-| `/analyze` returns `503`        | Analysis limiter overloaded or server shutting down                             | Reduce request burst; increase `MAX_CONCURRENT_ANALYSES`/`MAX_QUEUED_ANALYSES`; retry |
+| `/analyze` returns `503`        | Queue full or waited past `ANALYSIS_QUEUE_TIMEOUT_MS`, or shutting down         | Reduce request burst; increase `MAX_CONCURRENT_ANALYSES`/`MAX_QUEUED_ANALYSES`; retry |
 | `/analyze` returns `413`        | Response body exceeded max bytes                                                | Increase `MAX_FETCH_BYTES` cautiously                                                 |
 | `/analyze` returns `504`        | Fetch timeout, or analysis timeout (error `Analysis timed out`)                 | Increase `FETCH_TIMEOUT_MS` or `ANALYSIS_TIMEOUT_MS`; test target availability        |
 | Repeated `401` then `429`       | Bad credentials triggering auth-failure limiter                                 | Correct credentials; wait `Retry-After`; consider adjusting auth rate-limit env vars  |
