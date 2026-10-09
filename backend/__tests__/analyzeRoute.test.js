@@ -8,6 +8,9 @@
  * - AppError with expose=true passes message through; expose=false shows "Request failed"
  * - non-AppError (generic Error) returns 500
  * - limiter release is always called on both success and error paths
+ * - the optional per-client limit: off by default, blocks one client past its
+ *   hourly maximum, ignores invalid URLs, and can't be escaped with a forged
+ *   X-Forwarded-For
  *
  * Note: the route now imports buildFrontendReport (not buildSimpleReport). Mocks
  * must export buildFrontendReport so the route's require() resolves correctly.
@@ -334,5 +337,92 @@ describe("api/routes/analyze - handleAnalyze", () => {
 
     expect(res.statusCode).toBe(500);
     expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Per-client analysis limit ─────────────────────────────────────────────
+
+  describe("per-client analysis limit", () => {
+    function loadRoute({ perHour, hops = 0 }) {
+      jest.doMock("../src/core/config", () => ({
+        config: {
+          env: "test",
+          api: { analyzeRateLimitPerHour: perHour },
+          http: { trustProxyHops: hops },
+        },
+      }));
+      jest.doMock("../src/api/analysisLimiter", () => ({
+        analysisLimiter: { acquire: jest.fn(async () => jest.fn()) },
+      }));
+      jest.doMock("../src/core/analyzer", () => ({
+        analyzeUrl: jest.fn(async () => ({ ok: true })),
+      }));
+      jest.doMock("../src/core/report/cleanReport", () => ({
+        buildFrontendReport: jest.fn((report) => report),
+      }));
+      return require("../src/api/routes/analyze").handleAnalyze;
+    }
+
+    function from(remoteAddress, forwardedFor) {
+      const headers = forwardedFor ? { "x-forwarded-for": forwardedFor } : {};
+      return { headers, socket: { remoteAddress } };
+    }
+
+    async function analyze(handleAnalyze, req, url = "https://example.com") {
+      const res = mkRes();
+      await handleAnalyze(req, res, mkUrl(`/analyze?url=${url}`));
+      return res;
+    }
+
+    test("is off by default", async () => {
+      const handleAnalyze = loadRoute({ perHour: 0 });
+
+      for (let i = 0; i < 5; i++) {
+        const res = await analyze(handleAnalyze, from("192.0.2.1"));
+        expect(res.statusCode).toBe(200);
+      }
+    });
+
+    test("blocks a client past the hourly limit, and only that client", async () => {
+      const handleAnalyze = loadRoute({ perHour: 2 });
+      const client = from("192.0.2.1");
+
+      expect((await analyze(handleAnalyze, client)).statusCode).toBe(200);
+      expect((await analyze(handleAnalyze, client)).statusCode).toBe(200);
+
+      const blocked = await analyze(handleAnalyze, client);
+      expect(blocked.statusCode).toBe(429);
+      expect(blocked.headers["retry-after"]).toBe("3600");
+      expect(JSON.parse(blocked.body).error).toBe(
+        "Analysis limit reached. Please try again in 60 minutes.",
+      );
+
+      expect((await analyze(handleAnalyze, from("192.0.2.2"))).statusCode).toBe(
+        200,
+      );
+    });
+
+    test("doesn't count a request with an invalid URL", async () => {
+      const handleAnalyze = loadRoute({ perHour: 1 });
+      const client = from("192.0.2.1");
+
+      expect(
+        (await analyze(handleAnalyze, client, "not-a-url")).statusCode,
+      ).toBe(400);
+      expect((await analyze(handleAnalyze, client)).statusCode).toBe(200);
+    });
+
+    test("can't be escaped by forging X-Forwarded-For behind Render's proxies", async () => {
+      const handleAnalyze = loadRoute({ perHour: 2, hops: 3 });
+      const statuses = [];
+
+      // One client at 203.0.113.7, sending a different forged address each time.
+      for (let i = 1; i <= 3; i++) {
+        const forged = `192.0.2.${i},203.0.113.7, 172.70.50.143, 10.31.183.61`;
+        const res = await analyze(handleAnalyze, from("10.0.0.5", forged));
+        statuses.push(res.statusCode);
+      }
+
+      expect(statuses).toEqual([200, 200, 429]);
+    });
   });
 });

@@ -47,6 +47,7 @@ Use this checklist during handoff to ensure the client has everything needed to 
 
 - [ ] Service created as a **Web Service** (Docker)
 - [ ] Health check path set to `/health`
+- [ ] `TRUST_PROXY_HOPS=3` set (from `render.yaml`, or in the dashboard), so per-client limits see each client's own address
 - [ ] If enabling auth: set `AUTH_ENABLED=1`, `AUTH_USERNAME`, and `AUTH_PASSWORD` as **Secrets** in Render dashboard
 - [ ] If auth enabled: confirm login prompt appears on the main URL
 - [ ] Confirm `/health` returns 200 without auth

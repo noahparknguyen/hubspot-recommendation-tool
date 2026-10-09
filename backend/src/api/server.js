@@ -8,6 +8,7 @@ const { config } = require("../core/config");
 const { tryServeStatic, tryServeSpaFallback } = require("./static");
 const { isAuthorized, sendAuthChallenge } = require("./auth");
 const { createRateLimiter } = require("./rateLimit");
+const { getClientIp } = require("./clientIp");
 
 // Keep the HTTP surface intentionally small and stable.
 
@@ -199,7 +200,7 @@ const server = http.createServer(async (req, res) => {
 
     // Gate everything (API + static) except health checks when configured.
     if (authEnabled && !(config.auth.allowHealth && isHealth)) {
-      const ip = authRateLimiter.getClientIp(req);
+      const ip = getClientIp(req);
 
       // Best-effort brute-force throttling (in-memory only).
       if (config.auth.rateLimit && config.auth.rateLimit.enabled) {

@@ -5,10 +5,26 @@ const { analyzeUrl } = require("../../core/analyzer");
 const { buildFrontendReport } = require("../../core/report/cleanReport");
 const { isAppError } = require("../../core/errors");
 const { analysisLimiter } = require("../analysisLimiter");
+const { createRateLimiter } = require("../rateLimit");
+const { getClientIp } = require("../clientIp");
 const { config } = require("../../core/config");
 
+// Optional per-client limit, off unless ANALYZE_RATE_LIMIT_PER_HOUR is set.
+// It reuses the failed-login limiter, counting each analysis as an event:
+// past the hourly maximum, the client is blocked for an hour.
+const HOUR_MS = 60 * 60 * 1000;
+const analyzeRateLimiter =
+  config.api.analyzeRateLimitPerHour > 0
+    ? createRateLimiter({
+        windowMs: HOUR_MS,
+        maxFailures: config.api.analyzeRateLimitPerHour,
+        blockMs: HOUR_MS,
+      })
+    : null;
+
 // This route is intentionally "thin":
-// - it validates inputs and applies back-pressure (analysisLimiter)
+// - it validates inputs and applies back-pressure (the optional per-client
+//   limit, then analysisLimiter)
 // - it delegates the heavy lifting to core/analyzer (shared by API + CLI)
 // - it shapes output via buildFrontendReport (slimmed, frontend-only contract)
 
@@ -22,6 +38,16 @@ function sendJson(res, status, payload) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
   res.end(body);
+}
+
+function sendRateLimited(res, retryAfterSeconds) {
+  const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+  res.setHeader("Retry-After", String(retryAfterSeconds));
+  return sendJson(res, 429, {
+    ok: false,
+    error: `Analysis limit reached. Please try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+    retryAfterSeconds,
+  });
 }
 
 function normalizeAndValidateUrl(raw) {
@@ -68,12 +94,12 @@ function normalizeAndValidateUrl(raw) {
  * Query params:
  * - url (required) — absolute http/https URL to analyze
  *
- * @param {import("node:http").IncomingMessage} _req - Raw incoming request object (unused)
+ * @param {import("node:http").IncomingMessage} req - Raw incoming request object, for the client's address
  * @param {import("node:http").ServerResponse} res - Response writer
  * @param {URL} requestUrl - Parsed request URL with query params
  * @returns {Promise<void>} Resolves after response is written
  */
-async function handleAnalyze(_req, res, requestUrl) {
+async function handleAnalyze(req, res, requestUrl) {
   const rawUrl = requestUrl.searchParams.get("url");
 
   const normalized = normalizeAndValidateUrl(rawUrl);
@@ -83,6 +109,15 @@ async function handleAnalyze(_req, res, requestUrl) {
       error: normalized.error,
       example: "/analyze?url=https://react.dev/",
     });
+  }
+
+  // Only requests that would run an analysis count. A blocked request isn't
+  // counted, so retrying doesn't extend the block.
+  if (analyzeRateLimiter) {
+    const ip = getClientIp(req);
+    let block = analyzeRateLimiter.isBlocked(ip);
+    if (!block.blocked) block = analyzeRateLimiter.recordFailure(ip);
+    if (block.blocked) return sendRateLimited(res, block.retryAfterSeconds);
   }
 
   try {

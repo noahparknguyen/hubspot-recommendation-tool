@@ -49,6 +49,33 @@ async function main() {
   }
 
   if (
+    !Number.isFinite(config.analysis.timeoutMs) ||
+    config.analysis.timeoutMs <= 0
+  ) {
+    errors.push(
+      `ANALYSIS_TIMEOUT_MS must be a positive integer (got: ${config.analysis.timeoutMs})`,
+    );
+  }
+
+  if (
+    !Number.isInteger(config.api.analyzeRateLimitPerHour) ||
+    config.api.analyzeRateLimitPerHour < 0
+  ) {
+    errors.push(
+      `ANALYZE_RATE_LIMIT_PER_HOUR must be zero or a positive integer (got: ${config.api.analyzeRateLimitPerHour})`,
+    );
+  }
+
+  if (
+    !Number.isInteger(config.http.trustProxyHops) ||
+    config.http.trustProxyHops < 0
+  ) {
+    errors.push(
+      `TRUST_PROXY_HOPS must be zero or a positive integer (got: ${config.http.trustProxyHops})`,
+    );
+  }
+
+  if (
     !Number.isFinite(config.http.requestTimeoutMs) ||
     config.http.requestTimeoutMs <= 0
   ) {

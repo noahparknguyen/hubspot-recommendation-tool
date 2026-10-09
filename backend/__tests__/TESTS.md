@@ -29,6 +29,19 @@ HTTP handler for `GET /analyze`.
 - `AppError` with `expose=false` returns `"Request failed"` — internal message is hidden
 - Generic non-`AppError` returns 500
 - Limiter `release()` is always called on both success and error paths, including when `buildFrontendReport` itself throws
+- The optional per-client limit is off by default
+- With the limit on, one client past its hourly maximum gets `429` with `Retry-After`, while other clients carry on
+- Requests with an invalid URL don't count toward the limit
+- A client behind Render's proxies can't escape the limit by forging a new `X-Forwarded-For` address on each request
+
+### `clientIp.test.js`
+
+The client address used by the failed-auth limiter and the per-client analysis limit.
+
+- With no trusted proxies (the default), `X-Forwarded-For` and `X-Real-IP` are ignored and the connection's address is used
+- Behind proxies, the entry the outermost proxy added is used, whatever the client put before it (Render's measured header shape)
+- A header with fewer entries than proxies falls back to the connection's address
+- The proxy count defaults to `TRUST_PROXY_HOPS`
 
 ### `analyzer.test.js`
 

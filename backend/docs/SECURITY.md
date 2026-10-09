@@ -66,9 +66,10 @@ Limitations:
 
 ### Failed-auth rate limiting
 
-Files: `src/api/rateLimit.js`, `src/api/server.js`
+Files: `src/api/rateLimit.js`, `src/api/clientIp.js`, `src/api/server.js`
 
 - In-memory per-IP failure tracking
+- The client's address comes from `X-Forwarded-For` only as far as `TRUST_PROXY_HOPS` proxies vouch for it, so a client can't dodge the limit by forging that header
 - Sliding window + temporary block
 - Sends `429` with `Retry-After`
 - Success clears IP state
@@ -78,6 +79,18 @@ Limitations:
 - Per-process only
 - Resets on restart
 - Not distributed across replicas
+
+### Per-client analysis limit (optional)
+
+Files: `src/api/routes/analyze.js`, `src/api/rateLimit.js`, `src/api/clientIp.js`
+
+- Off unless `ANALYZE_RATE_LIMIT_PER_HOUR` is set; meant for a public demo
+- Past the limit, the client gets `429` with `Retry-After` and is blocked for an hour
+- Keyed by the same client address as the failed-auth limiter, so forging `X-Forwarded-For` doesn't reset it
+
+Limitations:
+
+- Same as failed-auth rate limiting: per-process, and reset on restart
 
 ### Analysis back-pressure controls
 

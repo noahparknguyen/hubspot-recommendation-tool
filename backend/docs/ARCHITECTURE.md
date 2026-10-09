@@ -178,6 +178,7 @@ GET /analyze?url=... or /api/analyze?url=...
   -> server.js route match
   -> optional auth gate + optional auth-failure rate limiter
   -> analyze route input validation
+  -> optional per-client limit (ANALYZE_RATE_LIMIT_PER_HOUR; 429 past it)
   -> analysisLimiter.acquire() (concurrency/queue guardrail)
   -> analyzeUrl() five-phase pipeline
      (phases 3-5 on the analysis thread; 504 past ANALYSIS_TIMEOUT_MS)

@@ -11,6 +11,11 @@ services:
     envVars:
       - key: PORT
         sync: false
+      # Render puts three proxies in front of the service (Cloudflare and two of
+      # its own), each adding one X-Forwarded-For entry. This tells the server
+      # which entry is the client's address, for its per-client limits.
+      - key: TRUST_PROXY_HOPS
+        value: "3"
       # Auth is off by default (AUTH_ENABLED=0 in the Dockerfile).
       # To enable: add AUTH_ENABLED=1, AUTH_USERNAME, and AUTH_PASSWORD as
       # secret environment variables in the Render dashboard.

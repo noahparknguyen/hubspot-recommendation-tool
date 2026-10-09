@@ -124,6 +124,19 @@ This document lists every backend environment variable defined in `src/core/conf
   - too low: more `503 ANALYZE_OVERLOADED`
   - too high: memory pressure under bursts
 
+### `ANALYZE_RATE_LIMIT_PER_HOUR`
+
+- Type: number
+- Default: `0` (off)
+- Purpose: analyses one client may run per hour, for a public demo. Past it,
+  the client gets `429` with `Retry-After` and is blocked for an hour. Requests
+  with an invalid URL don't count.
+- Requires: `TRUST_PROXY_HOPS` behind a proxy, or every client shares the
+  proxy's address, and so one limit
+- Misconfigured impact:
+  - too low: visitors blocked after a few tries
+  - too high: little protection against one client running analyses nonstop
+
 ### `AUTH_ENABLED`
 
 - Type: boolean-like
@@ -216,6 +229,22 @@ This document lists every backend environment variable defined in `src/core/conf
 - Default: `100`
 - Purpose: max requests per keep-alive socket
 - Misconfigured impact: poor socket reuse or long-lived socket risk
+
+### `TRUST_PROXY_HOPS`
+
+- Type: number
+- Default: `0`
+- Purpose: how many proxies sit in front of the server. Each adds one entry to
+  the end of `X-Forwarded-For`, and a client can put anything at the start, so
+  the client's address is taken this many entries from the end. At `0` the
+  header is ignored and the connection's address is used. Used by the
+  failed-auth limiter and `ANALYZE_RATE_LIMIT_PER_HOUR`.
+- On Render: `3` (Cloudflare and two Render proxies), set in `render.yaml`
+- Misconfigured impact:
+  - too low: every client shares a proxy's address, so one client's failed
+    logins or analyses count against everyone
+  - too high: the address comes from the part of the header a client can
+    forge, so limits can be dodged
 
 ### `DEBUG_SIGNALS`
 

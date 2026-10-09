@@ -81,6 +81,10 @@ const config = {
     maxConcurrentAnalyses: num(process.env.MAX_CONCURRENT_ANALYSES, 8),
     // Reject requests when the wait queue exceeds this size (keeps memory bounded).
     maxQueuedAnalyses: num(process.env.MAX_QUEUED_ANALYSES, 32),
+    // Analyses one client may run per hour. 0 turns the limit off. Meant for a
+    // public demo. Behind a proxy it needs TRUST_PROXY_HOPS, or every client
+    // shares the proxy's address, and so one limit.
+    analyzeRateLimitPerHour: num(process.env.ANALYZE_RATE_LIMIT_PER_HOUR, 0),
   },
 
   auth: {
@@ -108,6 +112,9 @@ const config = {
     headersTimeoutMs: num(process.env.HTTP_HEADERS_TIMEOUT_MS, 35_000),
     keepAliveTimeoutMs: num(process.env.HTTP_KEEP_ALIVE_TIMEOUT_MS, 5_000),
     maxRequestsPerSocket: num(process.env.HTTP_MAX_REQUESTS_PER_SOCKET, 100),
+    // Proxies in front of the server, each adding one X-Forwarded-For entry.
+    // 0 ignores that header, which clients can forge. Render needs 3.
+    trustProxyHops: num(process.env.TRUST_PROXY_HOPS, 0),
   },
 
   // Internal-only debug
