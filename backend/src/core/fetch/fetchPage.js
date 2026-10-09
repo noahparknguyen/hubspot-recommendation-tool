@@ -128,30 +128,57 @@ function uniq(arr) {
   return out;
 }
 
-function extractExternalResources(html) {
-  const scripts = [];
-  const styles = [];
+// Finds every tag with the given name in one forward scan, so the work grows in
+// step with the page. A regex such as /<script\b[^>]*\bsrc=…/ backtracks
+// instead: a page of unclosed "<script " fragments takes minutes at the 2 MB
+// cap, and the whole server waits.
+function findTags(html, name) {
+  const lower = html.toLowerCase();
+  const open = `<${name}`;
+  const tags = [];
+  let i = 0;
 
-  // <script src="...">
-  const scriptRe = /<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi;
-  let m;
-  while ((m = scriptRe.exec(html))) scripts.push(m[1]);
+  while ((i = lower.indexOf(open, i)) !== -1) {
+    // "<scripts" is a different tag: the name must end here.
+    const next = lower[i + open.length];
+    if (next !== undefined && !/[\s/>]/.test(next)) {
+      i += open.length;
+      continue;
+    }
 
-  // <link rel="stylesheet" href="...">
-  const linkRe = /<link\b[^>]*\brel\s*=\s*["']\s*stylesheet\s*["'][^>]*>/gi;
-  while ((m = linkRe.exec(html))) {
-    const tag = m[0];
-    const hrefM = /\bhref\s*=\s*["']([^"']+)["']/i.exec(tag);
-    if (hrefM) styles.push(hrefM[1]);
+    const end = lower.indexOf(">", i);
+    if (end === -1) break; // nothing after this point can close a tag
+    tags.push(html.slice(i, end + 1));
+    i = end + 1;
   }
 
-  // Some sites use rel='Stylesheet' or additional rel tokens
-  const linkRe2 =
-    /<link\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*\brel\s*=\s*["']([^"']+)["'][^>]*>/gi;
-  while ((m = linkRe2.exec(html))) {
-    const href = m[1];
-    const rel = (m[2] || "").toLowerCase();
-    if (rel.split(/\s+/).includes("stylesheet")) styles.push(href);
+  return tags;
+}
+
+// Reads one attribute's value from a single tag: double-quoted, single-quoted,
+// or unquoted.
+function attribute(tag, name) {
+  const m = new RegExp(
+    `\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`,
+    "i",
+  ).exec(tag);
+  return m ? (m[1] ?? m[2] ?? m[3]) : null;
+}
+
+function extractExternalResources(html) {
+  const scripts = [];
+  for (const tag of findTags(html, "script")) {
+    const src = attribute(tag, "src");
+    if (src) scripts.push(src);
+  }
+
+  // A stylesheet link names "stylesheet" among its rel tokens, in any case and
+  // in either attribute order.
+  const styles = [];
+  for (const tag of findTags(html, "link")) {
+    const rel = (attribute(tag, "rel") || "").toLowerCase().split(/\s+/);
+    const href = attribute(tag, "href");
+    if (href && rel.includes("stylesheet")) styles.push(href);
   }
 
   return { scripts: uniq(scripts), styles: uniq(styles) };
