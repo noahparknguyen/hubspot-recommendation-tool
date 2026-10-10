@@ -1,6 +1,6 @@
 # HubSpot Recommendation Tool
 
-Paste in a prospect's website URL and instantly see what technologies they use — and which HubSpot products could replace them.
+Paste in a prospect's website URL and instantly see what technologies they use, and which HubSpot products could replace them.
 
 Built as a capstone project by Team Debug (Algonquin College) for Inbox, a HubSpot Platinum Solutions Partner in Ottawa.
 
@@ -12,13 +12,13 @@ Built as a capstone project by Team Debug (Algonquin College) for Inbox, a HubSp
 [![Jest](https://img.shields.io/badge/Jest-30-c21325?logo=jest&logoColor=white)](https://jestjs.io)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker&logoColor=white)](https://docker.com)
 
-🔗 **Live Demo:** [hubspot-recommendation-tool.onrender.com](https://hubspot-recommendation-tool.onrender.com/) — hosted on a free tier that sleeps when idle, so the first load can take up to a minute.
+**Live Demo:** [hubspot-recommendation-tool.onrender.com](https://hubspot-recommendation-tool.onrender.com/). It's hosted on a free tier that sleeps when idle, so the first load can take up to a minute.
 
-![The HubSpot Recommendation Tool — paste a website URL and press Analyze](docs/home.png)
+![The HubSpot Recommendation Tool: paste a website URL and press Analyze](docs/home.png)
 
 ## What It Does
 
-A client comes to Inbox with an existing site, and Inbox works out what it's running and what could be consolidated into HubSpot instead. That research was manual. This tool is a shortcut for it: fetch the target site, fingerprint its technology stack using a Wappalyzer-style detection engine, and map each detected tool to the HubSpot product that could replace it — in seconds.
+A client comes to Inbox with an existing site, and Inbox works out what it's running and what could be consolidated into HubSpot instead. That research was manual. This tool is a shortcut for it. In seconds, it fetches the target site, fingerprints its technology stack with a Wappalyzer-style detection engine, and maps each detected tool to the HubSpot product that could replace it.
 
 It's meant to speed up discovery, not replace it. The output is a starting point for the conversation, not the conclusion.
 
@@ -26,17 +26,17 @@ It's meant to speed up discovery, not replace it. The output is a starting point
 
 Key capabilities:
 
-- Detects over 6,000 technologies via a 10-matcher fingerprint pipeline (HTTP headers, script sources, DOM, cookies, meta tags, inline scripts, CSS, and more)
-- Maps detections to HubSpot products via a configurable JSON file — no code changes required to add or update recommendations
+- Detects over 7,500 technologies via a 10-matcher fingerprint pipeline (HTTP headers, script sources, DOM, cookies, meta tags, inline scripts, CSS, and more)
+- Maps detections to HubSpot products via a configurable JSON file, so adding or updating a recommendation needs no code changes
 - Optional HTTP Basic Auth with in-memory failed-auth rate limiting
 - CLI tool for running analyses directly from the terminal
-- Single-container Docker deployment; live instance hosted on Render
-- Frontend theming via CSS custom properties — all colors and typography live in a single `:root` block so the whole app can be rebranded by editing one file; nothing is hardcoded outside that block
+- Single-container Docker deployment, with a live instance hosted on Render
+- Frontend theming via CSS custom properties: every brand colour and the body font live in a single `:root` block, so the whole app can be rebranded by editing one file
 - Accessible form: `aria-live` status announcements, `aria-invalid` and `aria-describedby` wired to the input's error state, validation deferred until blur or submit so users aren't interrupted mid-type
 
 ## Deploying Your Own Instance
 
-Fork this repo, clone it, and follow the Docker setup below. All configuration is handled through environment variables — no code changes needed to stand up your own deployment.
+Fork this repo, clone it, and follow the Docker setup below. All configuration is handled through environment variables, so standing up your own deployment needs no code changes.
 
 ## Quick Start
 
@@ -86,7 +86,7 @@ curl "http://localhost:3001/api/analyze?url=https://react.dev"
 | Layer          | Technology                                                                               |
 | -------------- | ---------------------------------------------------------------------------------------- |
 | Frontend       | React 18, Vite 7                                                                         |
-| Backend        | Node.js 24 (vanilla `http` — no framework)                                               |
+| Backend        | Node.js 24 (vanilla `http`, no framework)                                                |
 | Detection data | [WebAppAnalyzer](https://github.com/enthec/webappanalyzer) fingerprint dataset (GPL-3.0) |
 | HTML parsing   | Cheerio                                                                                  |
 | Testing        | Jest (backend), Vitest (frontend)                                                        |
@@ -94,7 +94,7 @@ curl "http://localhost:3001/api/analyze?url=https://react.dev"
 
 ## Documentation
 
-Full technical docs live in [`backend/docs/`](backend/docs/) — covering the API, architecture, environment variables, security model, and deployment guide.
+Full technical docs live in [`backend/docs/`](backend/docs/), covering the API, architecture, environment variables, security model, and deployment guide.
 
 Client-facing guides: [`CLIENT_GUIDE.md`](CLIENT_GUIDE.md) · [`TEAM_GUIDE.md`](TEAM_GUIDE.md)
 
