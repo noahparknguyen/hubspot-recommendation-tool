@@ -53,3 +53,17 @@ vendored locally to support offline/containerized builds. To update the
 dataset to the latest upstream version, run:
 
 cd backend && npm run update:techdb
+
+---
+
+## Avenir Next LT Pro font files
+
+Name: Avenir Next LT Pro (regular, bold, and italic web fonts)
+Source: Supplied by Inbox with their brand guidelines
+Path: frontend/public/fonts/
+License: Commercial typeface (Monotype). Not covered by this
+repository's GPL-3.0 license.
+
+These font files are included so that Inbox's own deployment of this
+tool matches their brand. Anyone else deploying this project should
+remove them; the app then falls back to the system font.
