@@ -1,8 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Favicon derived from the Inbox logo mark: brand-dark tile with the
-       orange square accent (Rectangle_120 in images/logo.svg). -->
-  <rect width="64" height="64" rx="12" fill="#302e2f"/>
-  <rect x="14" y="14" width="14" height="14" fill="#fc8f0d"/>
-  <rect x="14" y="34" width="14" height="16" fill="#ffffff"/>
-  <rect x="34" y="14" width="14" height="36" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="168 27.4 51 51" width="32" height="32">
+  <!-- Inbox's x, its two paths from images/logo.svg. The left half is brand
+       dark on a light tab and white on a dark one, as in the header. -->
+  <style>
+    .left { fill: #302e2f; }
+    @media (prefers-color-scheme: dark) { .left { fill: #ffffff; } }
+  </style>
+  <g transform="translate(-567.223 -411.793)">
+    <path d="M686.232,463.641l-9.5-13.422,7.9-11.061,6.819-9.5h15.077l-15.34,21.425,17.324,23.8h-14.15s-5.152-7.158-8.124-11.24Z" transform="translate(76.428 12.421)" fill="#fc8f0d"/>
+    <path class="left" d="M689.146,463.641l9.5-13.422-7.9-11.061-6.819-9.5H668.856L684.2,451.08l-17.324,23.8h14.15s5.152-7.158,8.124-11.24Z" transform="translate(69.574 12.421)"/>
+  </g>
 </svg>
