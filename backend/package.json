@@ -42,7 +42,7 @@
     "type": "git",
     "url": "https://github.com/noahparknguyen/hubspot-recommendation-tool"
   },
-  "homepage": "https://hubspot-recommendation-tool.onrender.com/",
+  "homepage": "https://github.com/noahparknguyen/hubspot-recommendation-tool",
   "type": "commonjs",
   "dependencies": {
     "cheerio": "^1.2.0",

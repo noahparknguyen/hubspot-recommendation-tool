@@ -8,7 +8,7 @@
     "type": "git",
     "url": "https://github.com/noahparknguyen/hubspot-recommendation-tool"
   },
-  "homepage": "https://hubspot-recommendation-tool.onrender.com/",
+  "homepage": "https://github.com/noahparknguyen/hubspot-recommendation-tool",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",

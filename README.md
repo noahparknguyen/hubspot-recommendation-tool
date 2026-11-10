@@ -4,6 +4,8 @@ Paste in a prospect's website URL and instantly see what technologies they use, 
 
 Built as a capstone project by Team Debug (Algonquin College) for Inbox, a HubSpot Platinum Solutions Partner in Ottawa.
 
+**Status:** finished and archived in November 2026. The project was handed off to Inbox, which runs its own copy. It gets no further updates or security fixes. To run it, fork it and keep your copy up to date.
+
 [![CI](https://img.shields.io/github/actions/workflow/status/noahparknguyen/hubspot-recommendation-tool/ci.yml?logo=githubactions&logoColor=white&label=CI)](https://github.com/noahparknguyen/hubspot-recommendation-tool/actions/workflows/ci.yml)
 [![GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](https://react.dev)
@@ -11,8 +13,6 @@ Built as a capstone project by Team Debug (Algonquin College) for Inbox, a HubSp
 [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)](https://vite.dev)
 [![Jest](https://img.shields.io/badge/Jest-30-c21325?logo=jest&logoColor=white)](https://jestjs.io)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker&logoColor=white)](https://docker.com)
-
-**Live Demo:** [hubspot-recommendation-tool.onrender.com](https://hubspot-recommendation-tool.onrender.com/). It's hosted on a free tier that sleeps when idle, so the first load can take up to a minute.
 
 ![The HubSpot Recommendation Tool: paste a website URL and press Analyze](docs/home.png)
 
@@ -30,7 +30,7 @@ Key capabilities:
 - Maps detections to HubSpot products via a configurable JSON file, so adding or updating a recommendation needs no code changes
 - Optional HTTP Basic Auth with in-memory failed-auth rate limiting
 - CLI tool for running analyses directly from the terminal
-- Single-container Docker deployment, with a live instance hosted on Render
+- Single-container Docker deployment, with a Render blueprint (`render.yaml`)
 - Frontend theming via CSS custom properties: every brand colour and the body font live in a single `:root` block, so the whole app can be rebranded by editing one file
 - Accessible form: `aria-live` status announcements, `aria-invalid` and `aria-describedby` wired to the input's error state, validation deferred until blur or submit so users aren't interrupted mid-type
 

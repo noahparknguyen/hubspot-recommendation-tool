@@ -1,12 +1,8 @@
 # Security Policy
 
-## Reporting a Vulnerability
+## Status
 
-**Please do not open a public GitHub issue for security vulnerabilities.**
-
-If you discover a security issue in this project, report it privately: open this repository's **Security** tab and choose **Report a vulnerability**.
-
-Include a description of the vulnerability, steps to reproduce it, and the potential impact. We will respond as quickly as possible and work with you to address the issue before any public disclosure.
+This project is finished and archived. It gets no further updates or security fixes, and vulnerability reports aren't monitored. If you run your own copy, keeping it up to date is up to you.
 
 ## Security Model
 
@@ -20,7 +16,3 @@ This project includes several built-in security controls:
 - **Request size and timeout limits:** bounded response bodies and connection timeouts to prevent resource exhaustion
 
 For full technical details, see [`backend/docs/SECURITY.md`](../backend/docs/SECURITY.md).
-
-## Supported Versions
-
-This is a capstone project maintained on a best-effort basis. Security fixes will be applied to the latest version on `main`.
